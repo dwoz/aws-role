@@ -1,13 +1,15 @@
 #!/usr/bin/env python
-import boto3
-import io
-import os
-import errno
-import pickle
 import datetime
 import dateutil.tz
+import errno
+import io
+import os
+import pickle
 import subprocess
 import sys
+
+import boto3
+
 if sys.version_info[0] >= 3:
     import configparser
 else:
@@ -110,8 +112,8 @@ def get_session(role, mfa_serial, access_key, secret_key, mfa_secret=None):
 
 
 if __name__ == '__main__':
-    conf = get_config(os.path.join(SCRIPT_DIR, 'role.conf'))
     if '--ensure-session' in sys.argv:
+        conf = get_config(os.path.join(SCRIPT_DIR, 'role.conf'))
         ensure_session(**conf)
     else:
         print_session_env()
