@@ -38,6 +38,8 @@ def get_config(file, section='role'):
 
 
 def read_session(filename=os.path.join(SCRIPT_DIR, SESSION_FILE)):
+    if not check_perms(filename):
+        raise Exception("Session file must have 600 permisions")
     try:
         with io.open(filename, 'rb') as fp:
             return pickle.load(fp)
@@ -50,6 +52,8 @@ def read_session(filename=os.path.join(SCRIPT_DIR, SESSION_FILE)):
 def write_session(session, filename=os.path.join(SCRIPT_DIR, SESSION_FILE)):
     with io.open(filename, 'wb') as fp:
         os.chmod(filename, int('10600', 8))
+        if not check_perms(filename):
+            raise Exception("Session file must have 600 permisions")
         pickle.dump(session, fp)
 
 
