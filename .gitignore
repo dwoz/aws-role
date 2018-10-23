@@ -1,0 +1,6 @@
+*.pyc
+
+role.conf
+session.pkl
+
+venv
