@@ -21,7 +21,11 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def check_perms(file, perm='600'):
-    stat = os.stat(file)
+    try:
+        stat = os.stat(file)
+    except OSError as exc:
+        if exc.errno == errno.ENOENT:
+            return
     return '{:o}'.format(stat.st_mode)[-3:] == perm
 
 
@@ -38,6 +42,8 @@ def get_config(file, section='role'):
 
 
 def read_session(filename=os.path.join(SCRIPT_DIR, SESSION_FILE)):
+    if not os.path.exists(filename):
+        return
     if not check_perms(filename):
         raise Exception("Session file must have 600 permisions")
     try:
@@ -50,10 +56,13 @@ def read_session(filename=os.path.join(SCRIPT_DIR, SESSION_FILE)):
 
 
 def write_session(session, filename=os.path.join(SCRIPT_DIR, SESSION_FILE)):
-    with io.open(filename, 'wb') as fp:
+    if not os.path.exists(filename):
+        with io.open(filename, 'wb') as fp:
+            fp.write('')
         os.chmod(filename, int('10600', 8))
-        if not check_perms(filename):
-            raise Exception("Session file must have 600 permisions")
+    if not check_perms(filename):
+        raise Exception("Session file must have 600 permisions")
+    with io.open(filename, 'wb') as fp:
         pickle.dump(session, fp)
 
 
