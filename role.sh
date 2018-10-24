@@ -1,8 +1,9 @@
 #!/bin/bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
-
-. $DIR/venv/bin/activate
+if [ -e $DIR/venv/bin/activate ];then
+  . $DIR/venv/bin/activate
+fi
 
 python $DIR/role.py --ensure-session
 
