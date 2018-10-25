@@ -21,9 +21,9 @@ while [[ $# -gt 0 ]]; do
 
 done
 
-echo "$proxy_args";
-echo "--";
-echo "$cmd";
+# echo "$proxy_args";
+# echo "--";
+# echo "$cmd";
 
 python $DIR/role.py --ensure-session $proxy_args
 
