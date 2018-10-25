@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import argparse
 import datetime
 import dateutil.tz
 import errno
@@ -20,6 +21,28 @@ SESSION_FILE = 'session.pkl'
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
+
+parser = argparse.ArgumentParser(description='Assume an aws role')
+parser.add_argument(
+    'name',
+    nargs='?',
+    help='Role configuration to use',
+)
+parser.add_argument(
+    '--config',
+    '-c',
+    default='role.conf',
+    help='Config file to use',
+)
+parser.add_argument(
+    '--ensure-session',
+    '-e',
+    default=False,
+    action='store_true',
+    help='Ensure a session exists to use for command',
+)
+
+
 def check_perms(file, perm='600'):
     try:
         stat = os.stat(file)
@@ -29,7 +52,7 @@ def check_perms(file, perm='600'):
     return '{:o}'.format(stat.st_mode)[-3:] == perm
 
 
-def get_config(file, section='role'):
+def get_config(file, section=None):
     if not check_perms(file):
         raise Exception("Config file must have 600 permisions")
     if sys.version_info[0] >= 3:
@@ -38,7 +61,11 @@ def get_config(file, section='role'):
         cp = ConfigParser.SafeConfigParser()
     with open(file) as fp:
         cp.readfp(fp)
-    return dict(cp.items(section))
+    if not section:
+        section = cp.sections()[0]
+    conf = dict(cp.items(section))
+    conf['name'] = section
+    return conf
 
 
 def read_session(filename=os.path.join(SCRIPT_DIR, SESSION_FILE)):
@@ -78,15 +105,17 @@ def output_environ(session):
 
 
 def ensure_session(**kwargs):
-    session = read_session()
+    filename = os.path.join(SCRIPT_DIR, '.session-{}.pkl'.format(kwargs['name']))
+    session = read_session(filename)
     now = datetime.datetime.now(dateutil.tz.tzutc())
     if session and session['Expiration'] > now:
         return
     get_session(**kwargs)
 
 
-def print_session_env():
-    session = read_session()
+def print_session_env(name):
+    filename = os.path.join(SCRIPT_DIR, '.session-{}.pkl'.format(name))
+    session = read_session(filename)
     now = datetime.datetime.now(dateutil.tz.tzutc())
     if session and session['Expiration'] > now:
         output_environ(session)
@@ -106,7 +135,7 @@ def get_mfa_code(secret=None):
     return input("Enter the MFA code: ").strip()
 
 
-def get_session(role, mfa_serial, access_key, secret_key, mfa_secret=None):
+def get_session(role, mfa_serial, access_key, secret_key, name, mfa_secret=None):
     sts_client = boto3.client(
         'sts',
         aws_access_key_id=access_key,
@@ -116,17 +145,19 @@ def get_session(role, mfa_serial, access_key, secret_key, mfa_secret=None):
     assumedRoleObject = sts_client.assume_role(
         RoleArn=role,
         DurationSeconds=10800,
-        RoleSessionName="RoleSH",
+        RoleSessionName="RoleSH-{}".format(name),
         SerialNumber=mfa_serial,
         TokenCode=code,
     )
     session = assumedRoleObject['Credentials']
-    write_session(session)
+    filename = os.path.join(SCRIPT_DIR, '.session-{}.pkl'.format(name))
+    write_session(session, filename)
 
 
 if __name__ == '__main__':
-    if '--ensure-session' in sys.argv:
-        conf = get_config(os.path.join(SCRIPT_DIR, 'role.conf'))
+    ns = parser.parse_args()
+    conf = get_config(os.path.join(SCRIPT_DIR, 'role.conf'), ns.name)
+    if ns.ensure_session:
         ensure_session(**conf)
     else:
-        print_session_env()
+        print_session_env(conf['name'])

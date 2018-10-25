@@ -2,5 +2,6 @@
 
 role.conf
 session.pkl
+.session-*.pkl
 
 venv
