@@ -7,7 +7,7 @@ Assume an aws role and run shell commands with the role applied the environment.
 Usage
 -----
 
-Create a config file named `role.conf`.
+Create a config file named `role.conf` with one or more role configurations.
 
 ```
 [role]
@@ -16,6 +16,10 @@ MFA_SERIAL=arn:aws:iam::089043110190:mfa/dwoz
 ACCESS_KEY=AKIFI2FAXD8YOPQ2DOIN
 SECRET_KEY=+Om1ibPOjnaKUsV9nNak4Gisf+Jpodoejt2YVwYg
 ```
+
+By default, `role.sh` will use the first configuration found in the config
+file. You can also provide the name of the configuration as a positional
+argument to `role.sh <section name> -- <command>`.
 
 Make sure the config file has restricted permissions.
 
@@ -32,7 +36,13 @@ export PATH="${PATH}:$(pwd)"
 Run a command using the role
 
 ```
-role.sh bundle exec kitchen converge py2-windows-2016
+role.sh -- bundle exec kitchen converge py2-windows-2016
+```
+
+or run a command under a specific role.
+
+```
+role.sh salt-developer -- bundle exec kitchen converge py2-windows-2016
 ```
 
 
