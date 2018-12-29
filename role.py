@@ -4,6 +4,7 @@ import datetime
 import dateutil.tz
 import errno
 import io
+import pipes
 import os
 import pickle
 import subprocess
@@ -40,6 +41,13 @@ parser.add_argument(
     default=False,
     action='store_true',
     help='Ensure a session exists to use for command',
+)
+parser.add_argument(
+    '--show-code',
+    '-s',
+    default=False,
+    action='store_true',
+    help='Show multifactor code',
 )
 
 
@@ -104,6 +112,15 @@ def output_environ(session):
     sys.stdout.flush()
 
 
+def env_dict(session):
+    sess_to_env = {
+        'AccessKeyId': 'AWS_ACCESS_KEY_ID',
+        'SecretAccessKey': 'AWS_SECRET_ACCESS_KEY',
+        'SessionToken': 'AWS_SESSION_TOKEN',
+    }
+    return {sess_to_env[k] : session[k] for k in sess_to_env}
+
+
 def ensure_session(**kwargs):
     filename = os.path.join(SCRIPT_DIR, '.session-{}.pkl'.format(kwargs['name']))
     session = read_session(filename)
@@ -154,10 +171,34 @@ def get_session(role, mfa_serial, access_key, secret_key, name, mfa_secret=None)
     write_session(session, filename)
 
 
+def parse_command(argv):
+    try:
+        idx = argv.index('--')
+    except ValueError:
+        idx = 0
+    if idx:
+        cmd = map(pipes.quote, sys.argv[idx+1:])
+        return argv[:idx], cmd
+    else:
+        return argv, None
+
+
 if __name__ == '__main__':
+    sys.argv, cmd = parse_command(sys.argv)
     ns = parser.parse_args()
     conf = get_config(os.path.join(SCRIPT_DIR, 'role.conf'), ns.name)
+    ensure_session(**conf)
     if ns.ensure_session:
-        ensure_session(**conf)
+        sys.exit(0)
+    elif ns.show_code:
+        if 'mfa_secret' in conf:
+            print(get_mfa_code(conf['mfa_secret']))
+    elif cmd:
+        filename = os.path.join(SCRIPT_DIR, '.session-{}.pkl'.format(conf['name']))
+        sess = read_session(filename)
+        env = os.environ.copy()
+        env.update(env_dict(sess))
+        proc = subprocess.Popen(cmd, env=env)
+        proc.wait()
     else:
         print_session_env(conf['name'])
